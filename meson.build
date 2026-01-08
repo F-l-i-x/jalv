@@ -54,6 +54,7 @@ if cc.get_id() == 'clang'
       '-Wno-float-equal',
       '-Wno-function-effects', # LV2
       '-Wno-implicit-float-conversion',
+      '-Wno-implicit-void-ptr-cast',
       '-Wno-incompatible-function-pointer-types-strict', # nonblocking
       '-Wno-missing-noreturn',
       '-Wno-padded',

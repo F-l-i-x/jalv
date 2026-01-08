@@ -287,7 +287,7 @@ on_request_value(LV2UI_Feature_Handle      handle,
 
   gtk_widget_destroy(dialog);
 
-  return 0;
+  return LV2UI_REQUEST_VALUE_SUCCESS;
 }
 
 float

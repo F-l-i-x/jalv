@@ -112,7 +112,7 @@ apply_ui_events(JalvProcess* const proc, const uint32_t nframes)
     }
   }
 
-  return 0;
+  return JALV_PROCESS_SUCCESS;
 }
 
 ZIX_REALTIME JalvProcessStatus

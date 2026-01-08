@@ -29,7 +29,7 @@
 // Define version unconditionally so a warning will catch a mismatch
 #define JALV_VERSION "1.8.0"
 
-#if !defined(JALV_NO_DEFAULT_CONFIG)
+#ifndef JALV_NO_DEFAULT_CONFIG
 
 // We need unistd.h to check _POSIX_VERSION
 #  ifndef JALV_NO_POSIX

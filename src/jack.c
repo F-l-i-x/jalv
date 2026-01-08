@@ -269,7 +269,7 @@ process_cb(const jack_nframes_t nframes, void* const data)
   JalvBackend* const     backend = (JalvBackend*)data;
   const JalvURIDs* const urids   = backend->urids;
   JalvProcess* const     proc    = backend->process;
-  TransportData          xport   = {{0U}, 0, {0U}, false};
+  TransportData          xport   = {{0U}, JackTransportStopped, {0U}, false};
 
   // If execution is paused, emit silence and return
   if (proc->run_state == JALV_PAUSED) {
