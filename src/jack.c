@@ -53,6 +53,39 @@ typedef struct {
 /// Maximum supported latency in frames (at most 2^24 so all integers work)
 static const float max_latency = 16777216.0f;
 
+/// Number of times to retry Jack port registration before giving up
+static const unsigned port_register_retries = 3U;
+
+static jack_port_t*
+register_port_with_retry(jack_client_t* const   client,
+                         const JalvProcessPort* port,
+                         const char* const      type,
+                         const enum JackPortFlags flags)
+{
+  for (unsigned attempt = 1U; attempt <= port_register_retries; ++attempt) {
+    jack_port_t* const registered =
+      jack_port_register(client, port->symbol, type, flags, 0);
+    if (registered) {
+      return registered;
+    }
+
+    if (attempt < port_register_retries) {
+      jalv_log(JALV_LOG_WARNING,
+               "Failed to register Jack port `%s` (attempt %u/%u), retrying\n",
+               port->symbol,
+               attempt,
+               port_register_retries);
+    }
+  }
+
+  jalv_log(JALV_LOG_ERR,
+           "Failed to register Jack port `%s` after %u attempts\n",
+           port->symbol,
+           port_register_retries);
+
+  return NULL;
+}
+
 /// Jack buffer size callback
 static int
 buffer_size_cb(const jack_nframes_t nframes, void* const data)
@@ -472,13 +505,13 @@ jalv_backend_activate_port(JalvBackend* const backend,
       proc->instance, port_index, &proc->controls_buf[port_index]);
     break;
   case TYPE_AUDIO:
-    port->sys_port = jack_port_register(
-      client, port->symbol, JACK_DEFAULT_AUDIO_TYPE, jack_flags, 0);
+    port->sys_port =
+      register_port_with_retry(client, port, JACK_DEFAULT_AUDIO_TYPE, jack_flags);
     break;
 #if USE_JACK_METADATA
   case TYPE_CV:
-    port->sys_port = jack_port_register(
-      client, port->symbol, JACK_DEFAULT_AUDIO_TYPE, jack_flags, 0);
+    port->sys_port =
+      register_port_with_retry(client, port, JACK_DEFAULT_AUDIO_TYPE, jack_flags);
     if (port->sys_port) {
       jack_set_property(client,
                         jack_port_uuid(port->sys_port),
@@ -490,8 +523,8 @@ jalv_backend_activate_port(JalvBackend* const backend,
 #endif
   case TYPE_EVENT:
     if (port->supports_midi) {
-      port->sys_port = jack_port_register(
-        client, port->symbol, JACK_DEFAULT_MIDI_TYPE, jack_flags, 0);
+      port->sys_port =
+        register_port_with_retry(client, port, JACK_DEFAULT_MIDI_TYPE, jack_flags);
     }
     break;
   }
