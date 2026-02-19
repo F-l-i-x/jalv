@@ -825,6 +825,7 @@ open_ui(Jalv* const jalv)
 void
 jalv_init(Jalv* const jalv, const int argc, char** const argv)
 {
+  jalv->opts.jack_port_retries = 3U;
   jalv->args.argc = argc;
   jalv->args.argv = argv;
 
@@ -929,7 +930,8 @@ jalv_open(Jalv* const jalv, const char* const load_arg)
                         &jalv->process,
                         &jalv->done,
                         jalv->opts.name,
-                        jalv->opts.name_exact)) {
+                        jalv->opts.name_exact,
+                        jalv->opts.jack_port_retries)) {
     jalv_log(JALV_LOG_ERR, "Failed to connect to audio system\n");
     return -6;
   }

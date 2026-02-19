@@ -53,6 +53,37 @@ typedef struct {
 /// Maximum supported latency in frames (at most 2^24 so all integers work)
 static const float max_latency = 16777216.0f;
 
+static jack_port_t*
+register_port_with_retry(jack_client_t* const   client,
+                         const JalvProcessPort* port,
+                         const char* const      type,
+                         const enum JackPortFlags flags,
+                         const uint32_t         retries)
+{
+  for (uint32_t attempt = 1U; attempt <= retries; ++attempt) {
+    jack_port_t* const registered =
+      jack_port_register(client, port->symbol, type, flags, 0);
+    if (registered) {
+      return registered;
+    }
+
+    if (attempt < retries) {
+      jalv_log(JALV_LOG_WARNING,
+               "Failed to register Jack port `%s` (attempt %u/%u), retrying\n",
+               port->symbol,
+               attempt,
+               retries);
+    }
+  }
+
+  jalv_log(JALV_LOG_ERR,
+           "Failed to register Jack port `%s` after %u attempts\n",
+           port->symbol,
+           retries);
+
+  return NULL;
+}
+
 /// Jack buffer size callback
 static int
 buffer_size_cb(const jack_nframes_t nframes, void* const data)
@@ -387,7 +418,8 @@ jalv_backend_open(JalvBackend* const     backend,
                   JalvProcess* const     process,
                   ZixSem* const          done,
                   const char* const      name,
-                  const bool             exact_name)
+                  const bool             exact_name,
+                  const uint32_t         port_retries)
 {
   jack_client_t* const client =
     backend->client ? backend->client : create_client(name, exact_name);
@@ -419,6 +451,7 @@ jalv_backend_open(JalvBackend* const     backend,
   backend->process            = process;
   backend->done               = done;
   backend->client             = client;
+  backend->port_retries       = port_retries ? port_retries : 1U;
   backend->is_internal_client = false;
   return 0;
 }
@@ -450,8 +483,9 @@ jalv_backend_activate_port(JalvBackend* const backend,
                            JalvProcess* const proc,
                            const uint32_t     port_index)
 {
-  jack_client_t* const   client = backend->client;
-  JalvProcessPort* const port   = &proc->ports[port_index];
+  jack_client_t* const   client  = backend->client;
+  const uint32_t         retries = backend->port_retries;
+  JalvProcessPort* const port    = &proc->ports[port_index];
 
   // Connect unsupported ports to NULL (known to be optional by this point)
   if (port->flow == FLOW_UNKNOWN || port->type == TYPE_UNKNOWN) {
@@ -472,13 +506,13 @@ jalv_backend_activate_port(JalvBackend* const backend,
       proc->instance, port_index, &proc->controls_buf[port_index]);
     break;
   case TYPE_AUDIO:
-    port->sys_port = jack_port_register(
-      client, port->symbol, JACK_DEFAULT_AUDIO_TYPE, jack_flags, 0);
+    port->sys_port =
+      register_port_with_retry(client, port, JACK_DEFAULT_AUDIO_TYPE, jack_flags, retries);
     break;
 #if USE_JACK_METADATA
   case TYPE_CV:
-    port->sys_port = jack_port_register(
-      client, port->symbol, JACK_DEFAULT_AUDIO_TYPE, jack_flags, 0);
+    port->sys_port =
+      register_port_with_retry(client, port, JACK_DEFAULT_AUDIO_TYPE, jack_flags, retries);
     if (port->sys_port) {
       jack_set_property(client,
                         jack_port_uuid(port->sys_port),
@@ -490,8 +524,8 @@ jalv_backend_activate_port(JalvBackend* const backend,
 #endif
   case TYPE_EVENT:
     if (port->supports_midi) {
-      port->sys_port = jack_port_register(
-        client, port->symbol, JACK_DEFAULT_MIDI_TYPE, jack_flags, 0);
+      port->sys_port =
+        register_port_with_retry(client, port, JACK_DEFAULT_MIDI_TYPE, jack_flags, retries);
     }
     break;
   }

@@ -71,6 +71,7 @@ print_usage(const char* name, bool error)
           "  -n NAME     JACK client name\n"
           "  -p          Print control output changes to stdout\n"
           "  -s          Show plugin UI if possible\n"
+          "  -R RETRIES  Retry count for JACK port registration (default 3)\n"
           "  -t          Print debug trace messages\n"
           "  -U URI      Load the UI with the given URI\n"
           "  -V          Display version information and exit\n"
@@ -174,6 +175,17 @@ parse_option(OptionsState* const state,
     state->status = print_usage(cmd, false);
   } else if (opt[1] == 'V' || !strcmp(opt, "--version")) {
     state->status = print_version();
+  } else if (opt[1] == 'R' || !strcmp(opt, "--jack-port-retries")) {
+    const char* const string = parse_argument(state, argc, argv, 'R');
+    if (!state->status) {
+      const long value = strtol(string, NULL, 10);
+      if (value >= 1) {
+        opts->jack_port_retries = (uint32_t)value;
+      } else {
+        state->status = 1;
+        fprintf(stderr, "%s: option value out of range -- 'R'\n", cmd);
+      }
+    }
   } else if (opt[1] == 's') {
     opts->show_ui = true;
   } else if (opt[1] == 'p') {
