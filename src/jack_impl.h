@@ -13,6 +13,7 @@
 #include <zix/sem.h>
 
 #include <stdbool.h>
+#include <stdint.h>
 
 // Definition of Jack backend structure (private to implementation)
 JALV_BEGIN_DECLS
@@ -23,6 +24,7 @@ struct JalvBackendImpl {
   JalvProcess*     process;            ///< Process thread state
   ZixSem*          done;               ///< Shutdown semaphore
   jack_client_t*   client;             ///< Jack client
+  uint32_t         port_retries;       ///< Retries for jack_port_register
   bool             is_internal_client; ///< Running inside jackd
 };
 

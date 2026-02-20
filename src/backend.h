@@ -35,7 +35,8 @@ jalv_backend_open(JalvBackend*     backend,
                   JalvProcess*     process,
                   ZixSem*          done,
                   const char*      name,
-                  bool             exact_name);
+                  bool             exact_name,
+                  uint32_t         port_retries);
 
 /// Close the audio/MIDI system
 void

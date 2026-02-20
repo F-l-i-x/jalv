@@ -129,7 +129,8 @@ jalv_backend_open(JalvBackend* const     backend,
                   JalvProcess* const     proc,
                   ZixSem* const          ZIX_UNUSED(done),
                   const char* const      ZIX_UNUSED(name),
-                  const bool             ZIX_UNUSED(exact_name))
+                  const bool             ZIX_UNUSED(exact_name),
+                  const uint32_t         ZIX_UNUSED(port_retries))
 {
   PaStreamParameters inputParameters;
   PaStreamParameters outputParameters;
