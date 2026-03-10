@@ -29,6 +29,10 @@
 #include <lv2/urid/urid.h>
 #include <zix/sem.h>
 
+#if HAVE_LIBLO
+#  include <lo/lo.h>
+#endif
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -61,6 +65,11 @@ struct JalvImpl {
   const LilvUI*     ui;          ///< Plugin UI (RDF data)
   const LilvNode*   ui_type;     ///< Plugin UI type (unwrapped)
   JalvProcess       process;     ///< Process thread state
+#if HAVE_LIBLO
+  lo_server_thread osc_server;   ///< OSC server thread
+#endif
+  char                osc_prefix[256]; ///< OSC path prefix
+  size_t              osc_prefix_len;  ///< OSC path prefix length
 #if USE_SUIL
   SuilHost*     ui_host;     ///< Plugin UI host support
   SuilInstance* ui_instance; ///< Plugin UI instance (shared library)

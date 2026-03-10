@@ -15,6 +15,7 @@
 #include "macros.h"
 #include "mapper.h"
 #include "nodes.h"
+#include "osc.h"
 #include "options.h"
 #include "patch.h"
 #include "port.h"
@@ -826,6 +827,7 @@ void
 jalv_init(Jalv* const jalv, const int argc, char** const argv)
 {
   jalv->opts.jack_port_retries = 3U;
+  jalv->opts.osc_port          = 50069U;
   jalv->args.argc = argc;
   jalv->args.argv = argv;
 
@@ -1031,6 +1033,8 @@ jalv_open(Jalv* const jalv, const char* const load_arg)
     jalv_backend_activate_port(jalv->backend, &jalv->process, i);
   }
 
+  jalv_osc_start(jalv);
+
   return 0;
 }
 
@@ -1069,6 +1073,8 @@ jalv_deactivate(Jalv* const jalv)
 int
 jalv_close(Jalv* const jalv)
 {
+  jalv_osc_stop(jalv);
+
   // Stop audio processing, free event port buffers, and close backend
   jalv_deactivate(jalv);
   jalv_process_deactivate(&jalv->process);

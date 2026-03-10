@@ -322,6 +322,12 @@ jack_dep = dependency(
   version: '>= 0.120.0',
 )
 
+lo_dep = dependency(
+  'liblo',
+  include_type: 'system',
+  required: false,
+)
+
 backend_sources = files()
 if get_option('jack').enabled() and get_option('portaudio').enabled()
   error('Only one of jack and portaudio can be enabled')
@@ -352,6 +358,7 @@ platform_defines = [
 ]
 
 suil_defines = ['-DHAVE_SUIL=@0@'.format(suil_dep.found().to_int())]
+lo_defines = ['-DHAVE_LIBLO=@0@'.format(lo_dep.found().to_int())]
 
 # Determine whether to use POSIX
 no_posix = get_option('posix').disabled() or host_machine.system() == 'windows'
@@ -451,6 +458,7 @@ common_sources = files(
   'src/features.c',
   'src/jalv.c',
   'src/log.c',
+  'src/osc.c',
   'src/lv2_evbuf.c',
   'src/mapper.c',
   'src/nodes.c',
@@ -477,16 +485,17 @@ common_dependencies = [
   suil_dep,
   thread_dep,
   zix_dep,
+  lo_dep,
 ]
 
-common_c_args = c_suppressions + platform_defines + suil_defines
+common_c_args = c_suppressions + platform_defines + suil_defines + lo_defines
 
 # Internal JACK client library
 if jack_dep.found() and host_machine.system() != 'windows'
   shared_library(
     'jalv',
     sources + files('src/jack_internal.c', 'src/console/jalv_console.c'),
-    c_args: c_suppressions + platform_defines + ['-DHAVE_SUIL=0'],
+    c_args: c_suppressions + platform_defines + ['-DHAVE_SUIL=0', '-DHAVE_LIBLO=@0@'.format(lo_dep.found().to_int())],
     dependencies: common_dependencies,
     implicit_include_directories: false,
     install: true,
@@ -563,7 +572,7 @@ endif
 build_qt5 = false
 build_qt6 = false
 if is_variable('cpp')
-  common_cpp_args = cpp_suppressions + platform_defines + suil_defines
+  common_cpp_args = cpp_suppressions + platform_defines + suil_defines + lo_defines
 
   qt_args = []
   if cpp.get_id() in ['clang', 'gcc']

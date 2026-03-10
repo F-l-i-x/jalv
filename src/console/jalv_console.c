@@ -69,6 +69,7 @@ print_usage(const char* name, bool error)
           "  -h          Display this help and exit\n"
           "  -i          Ignore keyboard input, run non-interactively\n"
           "  -n NAME     JACK client name\n"
+          "  -o PORT     OSC UDP listen port (default 50069)\n"
           "  -p          Print control output changes to stdout\n"
           "  -s          Show plugin UI if possible\n"
           "  -R RETRIES  Retry count for JACK port registration (default 3)\n"
@@ -215,6 +216,17 @@ parse_option(OptionsState* const state,
   } else if (opt[1] == 'n') {
     free(opts->name);
     opts->name = jalv_strdup(parse_argument(state, argc, argv, 'n'));
+  } else if (opt[1] == 'o') {
+    const char* const string = parse_argument(state, argc, argv, 'o');
+    if (!state->status) {
+      const long value = strtol(string, NULL, 10);
+      if (value >= 1 && value <= 65535) {
+        opts->osc_port = (uint32_t)value;
+      } else {
+        state->status = 1;
+        fprintf(stderr, "%s: option value out of range -- 'o'\n", cmd);
+      }
+    }
   } else if (opt[1] == 'x') {
     opts->name_exact = 1;
   } else {
