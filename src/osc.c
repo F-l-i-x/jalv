@@ -11,6 +11,8 @@
 #  include <lo/lo.h>
 #endif
 
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -20,6 +22,102 @@ static int
 osc_error(const int num, const char* const msg, const char* const where)
 {
   fprintf(stderr, "OSC error %d in %s: %s\n", num, where, msg);
+  return 0;
+}
+
+static const char*
+property_short_name(const char* const symbol)
+{
+  if (!symbol) {
+    return "";
+  }
+
+  const char* const separator = strchr(symbol, '_');
+  return separator ? separator + 1 : symbol;
+}
+
+static bool
+is_osc_control_name(const Control* const control, const char* const symbol)
+{
+  const char* const control_symbol = lilv_node_as_string(control->symbol);
+  if (!strcmp(control_symbol, symbol)) {
+    return true;
+  }
+
+  if (control->type == PROPERTY) {
+    if (!strcmp(property_short_name(control_symbol), symbol)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static Control*
+osc_find_control(const Jalv* const jalv, const char* const symbol)
+{
+  for (size_t i = 0; i < jalv->controls.n_controls; ++i) {
+    Control* const control = jalv->controls.controls[i];
+    if (is_osc_control_name(control, symbol)) {
+      return control;
+    }
+  }
+
+  return NULL;
+}
+
+static int
+osc_set_property_control(Jalv* const           jalv,
+                         Control* const        control,
+                         const char* const     types,
+                         lo_arg** const        argv,
+                         const int             argc,
+                         const char* const     path)
+{
+  if (!types || !types[0]) {
+    jalv_log(JALV_LOG_WARNING, "Ignoring OSC path %s with no type\n", path);
+    return 0;
+  }
+
+  const char osc_type = types[0];
+
+  if (control->value_type == jalv->forge.Float && osc_type == 'f' && argc >= 1) {
+    const float value = argv[0]->f;
+    return jalv_set_control(jalv, control, sizeof(value), jalv->forge.Float, &value);
+  }
+
+  if (control->value_type == jalv->forge.Double && osc_type == 'd' && argc >= 1) {
+    const double value = argv[0]->d;
+    return jalv_set_control(jalv, control, sizeof(value), jalv->forge.Double, &value);
+  }
+
+  if (control->value_type == jalv->forge.Int && osc_type == 'i' && argc >= 1) {
+    const int32_t value = argv[0]->i;
+    return jalv_set_control(jalv, control, sizeof(value), jalv->forge.Int, &value);
+  }
+
+  if (control->value_type == jalv->forge.Long && osc_type == 'h' && argc >= 1) {
+    const int64_t value = argv[0]->h;
+    return jalv_set_control(jalv, control, sizeof(value), jalv->forge.Long, &value);
+  }
+
+  if (control->value_type == jalv->forge.Bool && (osc_type == 'T' || osc_type == 'F')) {
+    const int32_t value = (osc_type == 'T');
+    return jalv_set_control(jalv, control, sizeof(value), jalv->forge.Bool, &value);
+  }
+
+  if ((control->value_type == jalv->forge.String ||
+       control->value_type == jalv->forge.Path) &&
+      (osc_type == 's' || osc_type == 'S') && argc >= 1) {
+    const char* const value = &argv[0]->s;
+    const size_t      size  = strlen(value) + 1U;
+    return jalv_set_control(jalv, control, (uint32_t)size, control->value_type, value);
+  }
+
+  jalv_log(JALV_LOG_WARNING,
+           "Ignoring OSC path %s with unsupported type '%c'\n",
+           path,
+           osc_type);
   return 0;
 }
 
@@ -39,20 +137,30 @@ osc_control_handler(const char* const     path,
   }
 
   const char* const symbol = path + jalv->osc_prefix_len + 1;
-  Control* const    control = get_named_control(&jalv->controls, symbol);
-  if (!control || control->type != PORT) {
+  Control* const    control = osc_find_control(jalv, symbol);
+  if (!control) {
     jalv_log(JALV_LOG_WARNING, "Ignoring OSC for unknown control: %s\n", path);
     return 0;
   }
 
-  if (argc < 1 || !types || types[0] != 'f') {
+  if (control->type == PORT) {
+    if (argc < 1 || !types || types[0] != 'f') {
+      jalv_log(
+        JALV_LOG_WARNING, "Ignoring OSC path %s with unsupported type\n", path);
+      return 0;
+    }
+
+    const float value = argv[0]->f;
+    jalv_set_control(jalv, control, sizeof(value), jalv->forge.Float, &value);
+    return 0;
+  }
+
+  if (control->type != PROPERTY) {
     jalv_log(JALV_LOG_WARNING, "Ignoring OSC path %s with unsupported type\n", path);
     return 0;
   }
 
-  const float value = argv[0]->f;
-  jalv_set_control(jalv, control, sizeof(value), jalv->forge.Float, &value);
-  return 0;
+  return osc_set_property_control(jalv, control, types, argv, argc, path);
 }
 #endif
 
