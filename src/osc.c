@@ -26,19 +26,14 @@ osc_error(const int num, const char* const msg, const char* const where)
 }
 
 static const char*
-property_leaf_name(const char* const uri)
+property_short_name(const char* const symbol)
 {
-  if (!uri) {
+  if (!symbol) {
     return "";
   }
 
-  const char* leaf = strrchr(uri, '#');
-  if (leaf) {
-    return leaf + 1;
-  }
-
-  leaf = strrchr(uri, '/');
-  return leaf ? leaf + 1 : uri;
+  const char* const separator = strchr(symbol, '_');
+  return separator ? separator + 1 : symbol;
 }
 
 static bool
@@ -50,8 +45,7 @@ is_osc_control_name(const Control* const control, const char* const symbol)
   }
 
   if (control->type == PROPERTY) {
-    const char* const property_uri = lilv_node_as_uri(control->node);
-    if (!strcmp(property_leaf_name(property_uri), symbol)) {
+    if (!strcmp(property_short_name(control_symbol), symbol)) {
       return true;
     }
   }
