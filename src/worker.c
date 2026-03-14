@@ -160,10 +160,15 @@ jalv_worker_launch(JalvWorker* const worker)
 void
 jalv_worker_exit(JalvWorker* const worker)
 {
-  if (worker && worker->state == STATE_LAUNCHED) {
+  if (!worker) {
+    return;
+  }
+
+  if (worker->state == STATE_LAUNCHED) {
     worker->state = STATE_MUST_EXIT;
     zix_sem_post(&worker->sem);
     zix_thread_join(worker->thread);
+    zix_sem_destroy(&worker->sem);
   }
 }
 
